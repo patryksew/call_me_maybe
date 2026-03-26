@@ -155,6 +155,12 @@ class FSM:
 
         return str_end_state
 
+    def add_boolean(self, start: int) -> list[int]:
+        """Adds the literals "true" and false" to the FSM, starting from the given state."""
+        true_state = self.add_literal("true", start)
+        false_state = self.add_literal("false", start)
+        return [true_state, false_state]
+
     def validate_text(self, text: str) -> ValidationResult:
         state = self.states[0]
 
