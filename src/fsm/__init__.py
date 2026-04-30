@@ -167,32 +167,3 @@ class FSM:
         if len(state) == 0:
             return FSM.ValidationResult.FINISHED
         return FSM.ValidationResult.OK
-
-
-def main():
-    fsm = FSM()
-    hello = fsm.add_literal("hello", [0])
-    fsm.add_whitespace(hello)
-    fsm.add_literal("hi", [hello])
-    world = fsm.add_literal("world", [hello])
-    numbers = fsm.add_number(world)
-    for num in numbers:
-        fsm.add_whitespace(num)
-    fsm.add_literal(",", numbers)
-    fsm.add_literal("hahaha", [hello, hello, *numbers])
-
-    print(fsm.states)
-
-    texts = ["helloworld123.00001E+2137           ,",
-             "hello world-0.0 ",
-             "hello world1110e",
-             "hello hi",
-             "hello hahaha"]
-
-    for text in texts:
-        print(text)
-        print(fsm.validate_text(text))
-
-
-if __name__ == "__main__":
-    main()
