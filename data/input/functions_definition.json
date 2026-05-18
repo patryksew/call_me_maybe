@@ -67,18 +67,5 @@
     "returns": {
       "type": "string"
     }
-  },
-  {
-    "name": "fn_sort_list",
-    "description": "Sort a list of numbers in ascending order and return the sorted list.",
-    "parameters": {
-      "values": {
-        "type": "array"
-      }
-    },
-    "returns": {
-      "type": "array"
-    }
   }
-
 ]

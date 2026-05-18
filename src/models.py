@@ -2,13 +2,16 @@ from functools import singledispatchmethod
 
 from pydantic import BaseModel, Field, RootModel, field_validator
 
-from fsm import FSM
+from .fsm import FSM
 
 
 class OutputResult(BaseModel):
-    prompt: str = Field()
+    prompt: str = Field(default="")
     name: str = Field()
     parameters: dict = Field()
+
+    def add_prompt(self, val: str):
+        self.prompt = val
 
 
 class OutputResults(RootModel[list[OutputResult]]):

@@ -7,7 +7,14 @@ requires-python = ">=3.13"
 dependencies = [
 	"llm-sdk==0.0.10",
 	"pydantic==2.10.4",
+    "torchvision>=0.15.0",
+    "torch",
+    "accelerate",
 ]
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/rocm7.2"
 
 [tool.uv.sources]
 llm-sdk = { path = "llm_sdk", editable = true }
