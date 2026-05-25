@@ -3,6 +3,7 @@ import time
 from .io_manager import IOManager
 from .models import OutputResults, OutputResult
 from .robot import Robot
+from .printer import Printer
 
 
 def main():
@@ -15,7 +16,9 @@ def main():
 
     prompts = i.get_input_prompts().prompts
     validator = definitions.to_fsm()
-    robot = Robot(definitions, validator)
+
+    printer = Printer(len(prompts))
+    robot = Robot(definitions, validator, printer)
 
     outputs = OutputResults()
 
@@ -31,11 +34,15 @@ def main():
             print(e)
             print(answer)
 
-    print(outputs.model_dump_json(indent=4))
+    i.save_output_results(outputs)
 
     print(f"Total time: {time.time() - start_t:.2f} seconds")
 
     exit(0)
 
 
-main()
+if __name__ == "__main__":
+    try:
+        main()
+    finally:
+        Printer.restore_terminal_settings()

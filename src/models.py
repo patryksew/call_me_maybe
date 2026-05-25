@@ -1,3 +1,4 @@
+import json
 from functools import singledispatchmethod
 
 from pydantic import BaseModel, Field, RootModel, field_validator
@@ -109,6 +110,12 @@ class FunctionDefinitions(RootModel[list[FunctionDefinition]]):
 
         root_state = fsm.add_literal('{', 0)
         fsm.add_whitespace(root_state)
+        root_state = fsm.add_literal('"prompt":', root_state)
+        fsm.add_whitespace(root_state)
+        root_state = fsm.add_string(root_state)
+        root_state = fsm.add_literal(',', root_state)
+
+        fsm.add_whitespace(root_state)
 
         terminal_states = [fun.attach_to_fsm(fsm, root_state) for fun in self.functions]
 
@@ -119,6 +126,9 @@ class FunctionDefinitions(RootModel[list[FunctionDefinition]]):
 
 class InputPrompt(BaseModel):
     prompt: str = Field()
+
+    def __str__(self):
+        return json.dumps(self.prompt)
 
 
 class InputPrompts(RootModel[list[InputPrompt]]):
