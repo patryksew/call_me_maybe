@@ -57,25 +57,19 @@ class FunctionDefinition(BaseModel):
         """Attaches the function definition to the FSM, starting from the given index. Returns the index of the final state."""
 
         # "name": "name",
-        state = fsm.add_literal('"name":', index)
-        fsm.add_whitespace(state)
-        state = fsm.add_literal(f'"{self.name}",', state)
-        fsm.add_whitespace(state)
+        state = fsm.add_literal(f'"name": "{self.name}",\n    ', index)
 
         # "parameters": {
-        state = fsm.add_literal('"parameters":', state)
-        fsm.add_whitespace(state)
-        state = fsm.add_literal('{', state)
+        state = fsm.add_literal('"parameters": {', state)
 
         # actual parameters
         if self.parameters:
             first = True
             for key, val in self.parameters.items():
                 if not first:
-                    state = fsm.add_literal(',', state)
-                fsm.add_whitespace(state)
-                state = fsm.add_literal(f'"{key}":', state)
-                fsm.add_whitespace(state)
+                    state = fsm.add_literal(f',\n        "{key}": ', state)
+                else:
+                    state = fsm.add_literal(f'\n        "{key}": ', state)
 
                 p_type = val['type']
                 if p_type == "string":
@@ -92,9 +86,7 @@ class FunctionDefinition(BaseModel):
 
                 first = False
 
-        fsm.add_whitespace(state)
-        state = fsm.add_literal('}', state)
-        fsm.add_whitespace(state)
+        state = fsm.add_literal('\n    }\n', state)
 
         return state
 
@@ -105,17 +97,15 @@ class FunctionDefinitions(RootModel[list[FunctionDefinition]]):
         return self.root
 
     def to_fsm(self) -> FSM:
-        """Converts the function definition to an FSM that can be used in constrained decoding. Does not contain the prompt."""
+        """Converts the function definition to an FSM that can be used in constrained decoding."""
         fsm = FSM()
 
-        root_state = fsm.add_literal('{', 0)
-        fsm.add_whitespace(root_state)
-        root_state = fsm.add_literal('"prompt":', root_state)
-        fsm.add_whitespace(root_state)
+        # "prompt":
+        root_state = fsm.add_literal('{\n    "prompt": ', 0)
+        # actual prompt
         root_state = fsm.add_string(root_state)
-        root_state = fsm.add_literal(',', root_state)
-
-        fsm.add_whitespace(root_state)
+        # indent before "name"
+        root_state = fsm.add_literal(',\n    ', root_state)
 
         terminal_states = [fun.attach_to_fsm(fsm, root_state) for fun in self.functions]
 
