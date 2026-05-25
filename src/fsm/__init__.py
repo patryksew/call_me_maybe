@@ -167,3 +167,24 @@ class FSM:
         if len(state) == 0:
             return FSM.ValidationResult.FINISHED
         return FSM.ValidationResult.OK
+
+    def try_autocomplete(self, text: str) -> tuple[str, bool]:
+        """Tries to autocomplete the given text to a valid string according to the FSM, as long when there is a single valid path.
+        Returns the autocompleted text and a boolean indicating whether any autocompletion was done."""
+        state = self.states[0]
+        result = text
+        did_something = False
+
+        for char in text:
+            next_state = state.get(char)
+            if next_state is None:
+                return result, did_something
+            state = self.states[next_state]
+
+        while len(state) == 1:
+            did_something = True
+            char, next_state_index = next(iter(state.items()))
+            result += char
+            state = self.states[next_state_index]
+
+        return result, did_something

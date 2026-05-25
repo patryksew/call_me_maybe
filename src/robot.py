@@ -47,6 +47,10 @@ class Robot:
         answer_start = self.get_answer_start_index(tokens)
 
         while True:
+            text, did_autocomplete = self.validator.try_autocomplete(self.model.decode(tokens[answer_start:]))
+            if did_autocomplete:
+                tokens[answer_start:] = self.model.encode(text)[0].tolist()
+                tokens.pop()
             logits = self.model.get_logits_from_input_ids(tokens)
             while True:
                 max_logit = logits.index(max(logits))

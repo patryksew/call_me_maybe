@@ -875,5 +875,306 @@ class TestFSMString:
         assert result == FSM.ValidationResult.FINISHED
 
 
+class TestTryAutocomplete:
+    """Test the try_autocomplete method."""
+
+    def test_autocomplete_simple_literal_complete_match(self):
+        """Completing a text that fully matches a literal should not autocomplete."""
+        fsm = FSM()
+        fsm.add_literal("hello", [0])
+
+        result, did_autocomplete = fsm.try_autocomplete("hello")
+        assert result == "hello"
+        assert did_autocomplete is False
+
+    def test_autocomplete_simple_literal_partial_match(self):
+        """Completing a partial match with no branch should autocomplete deterministically."""
+        fsm = FSM()
+        fsm.add_literal("hello", [0])
+
+        result, did_autocomplete = fsm.try_autocomplete("hel")
+        assert result == "hello"
+        assert did_autocomplete is True
+
+    def test_autocomplete_empty_input(self):
+        """Autocompleting empty input on a single literal should work."""
+        fsm = FSM()
+        fsm.add_literal("test", [0])
+
+        result, did_autocomplete = fsm.try_autocomplete("")
+        assert result == "test"
+        assert did_autocomplete is True
+
+    def test_autocomplete_invalid_character_returns_original(self):
+        """If input contains invalid character, return original text without autocomplete."""
+        fsm = FSM()
+        fsm.add_literal("hello", [0])
+
+        result, did_autocomplete = fsm.try_autocomplete("hex")
+        assert result == "hex"
+        assert did_autocomplete is False
+
+    def test_autocomplete_with_multiple_paths_no_autocomplete(self):
+        """When there are multiple valid paths after input, don't autocomplete."""
+        fsm = FSM()
+        fsm.add_literal("hello", [0])
+        fsm.add_literal("help", [0])
+
+        # "hel" has two possible continuations (lo or p), so can't autocomplete
+        result, did_autocomplete = fsm.try_autocomplete("hel")
+        assert result == "hel"
+        assert did_autocomplete is False
+
+    def test_autocomplete_with_single_path_continues(self):
+        """When there's only one valid path after input, continue autocompleting."""
+        fsm = FSM()
+        fsm.add_literal("hello", [0])
+        fsm.add_literal("help", [0])
+
+        # "hell" has only one continuation (o), so should autocomplete to "hello"
+        result, did_autocomplete = fsm.try_autocomplete("hell")
+        assert result == "hello"
+        assert did_autocomplete is True
+
+    def test_autocomplete_completely_invalid_input(self):
+        """Completely invalid input doesn't autocomplete."""
+        fsm = FSM()
+        fsm.add_literal("hello", [0])
+
+        result, did_autocomplete = fsm.try_autocomplete("x")
+        assert result == "x"
+        assert did_autocomplete is False
+
+    def test_autocomplete_stops_at_branching_point(self):
+        """Autocomplete stops when it reaches a state with multiple transitions."""
+        fsm = FSM()
+        fsm.add_literal("hello", [0])
+        fsm.add_literal("help", [0])
+        fsm.add_literal("hey", [0])
+
+        # "he" has three possible continuations (l, l, y)
+        result, did_autocomplete = fsm.try_autocomplete("he")
+        assert result == "he"
+        assert did_autocomplete is False
+
+    def test_autocomplete_with_whitespace(self):
+        """Autocomplete through whitespace - stops at whitespace state with multiple options."""
+        fsm = FSM()
+        hello = fsm.add_literal("hello", [0])
+        fsm.add_whitespace(hello)
+        fsm.add_literal("world", [hello])
+
+        # "hello " is at a state with whitespace looping (space, tab, newline) and 'w' option
+        # So it has multiple transitions and won't autocomplete
+        result, did_autocomplete = fsm.try_autocomplete("hello ")
+        assert result == "hello "
+        assert did_autocomplete is False
+
+    def test_autocomplete_empty_string_on_terminal_state(self):
+        """Empty string on FSM with no options returns as-is with no autocomplete."""
+        fsm = FSM()
+        result, did_autocomplete = fsm.try_autocomplete("")
+        assert result == ""
+        assert did_autocomplete is False
+
+    def test_autocomplete_partial_literal_no_branching(self):
+        """Partial match of a literal with no alternative paths autocompletes fully."""
+        fsm = FSM()
+        fsm.add_literal("abc", [0])
+
+        result, did_autocomplete = fsm.try_autocomplete("a")
+        assert result == "abc"
+        assert did_autocomplete is True
+
+        result2, did_autocomplete2 = fsm.try_autocomplete("ab")
+        assert result2 == "abc"
+        assert did_autocomplete2 is True
+
+    def test_autocomplete_diverging_literals_partial_prefix(self):
+        """Partial prefix that splits into multiple paths doesn't autocomplete."""
+        fsm = FSM()
+        fsm.add_literal("cat", [0])
+        fsm.add_literal("car", [0])
+
+        result, did_autocomplete = fsm.try_autocomplete("ca")
+        assert result == "ca"
+        assert did_autocomplete is False
+
+    def test_autocomplete_diverging_literals_single_path_after(self):
+        """Even with diverging paths, if input reaches a point with single continuation, autocomplete."""
+        fsm = FSM()
+        fsm.add_literal("cat", [0])
+        fsm.add_literal("car", [0])
+        fsm.add_literal("ca_special", [0])
+
+        # After "cat" there's only one option at end (terminal), and same with "car"
+        result, did_autocomplete = fsm.try_autocomplete("cat")
+        assert result == "cat"
+        assert did_autocomplete is False  # Already at terminal state
+
+    def test_autocomplete_boolean_true(self):
+        """Autocomplete boolean true."""
+        fsm = FSM()
+        fsm.add_boolean(0)
+
+        result, did_autocomplete = fsm.try_autocomplete("tr")
+        assert result == "true"
+        assert did_autocomplete is True
+
+    def test_autocomplete_boolean_false(self):
+        """Autocomplete boolean false."""
+        fsm = FSM()
+        fsm.add_boolean(0)
+
+        result, did_autocomplete = fsm.try_autocomplete("fal")
+        assert result == "false"
+        assert did_autocomplete is True
+
+    def test_autocomplete_boolean_ambiguous(self):
+        """Autocomplete boolean "t" leads deterministically to "true"."""
+        fsm = FSM()
+        fsm.add_boolean(0)
+
+        # "t" only has one continuation ('r' from "true"), so it autocompletes
+        result, did_autocomplete = fsm.try_autocomplete("t")
+        assert result == "true"
+        assert did_autocomplete is True
+
+    def test_autocomplete_boolean_initial_ambiguous(self):
+        """Initial empty input is ambiguous between true and false."""
+        fsm = FSM()
+        fsm.add_boolean(0)
+
+        # Empty input has two options ('t' for true, 'f' for false)
+        result, did_autocomplete = fsm.try_autocomplete("")
+        assert result == ""
+        assert did_autocomplete is False
+
+    def test_autocomplete_number_zero(self):
+        """Autocomplete number zero."""
+        fsm = FSM()
+        end_states = fsm.add_number(0)
+
+        result, did_autocomplete = fsm.try_autocomplete("0")
+        assert result == "0"
+        assert did_autocomplete is False  # Terminal state reached
+
+    def test_autocomplete_number_negative(self):
+        """Autocomplete negative number."""
+        fsm = FSM()
+        fsm.add_number(0)
+
+        result, did_autocomplete = fsm.try_autocomplete("-")
+        # Deterministically continues with digits possible
+        assert result.startswith("-")
+        # Whether it autocompletes depends on having only one valid next character
+
+    def test_autocomplete_after_invalid_continues_from_failure_point(self):
+        """Once an invalid character is hit, stay at result with invalid char, don't autocomplete."""
+        fsm = FSM()
+        fsm.add_literal("hello", [0])
+
+        result, did_autocomplete = fsm.try_autocomplete("hex")
+        assert result == "hex"  # Original input returned
+        assert did_autocomplete is False
+
+    def test_autocomplete_chain_of_deterministic_transitions(self):
+        """Autocomplete through multiple deterministic transitions."""
+        fsm = FSM()
+        state1 = fsm.add_literal("a", [0])
+        state2 = fsm.add_literal("b", [state1])
+        state3 = fsm.add_literal("c", [state2])
+
+        result, did_autocomplete = fsm.try_autocomplete("a")
+        assert result == "abc"
+        assert did_autocomplete is True
+
+    def test_autocomplete_mixed_branching_and_linear(self):
+        """Complex FSM with branching and linear paths."""
+        fsm = FSM()
+        # Two initial choices: "a" or "b"
+        a_state = fsm.add_literal("a", [0])
+        b_state = fsm.add_literal("b", [0])
+
+        # Both lead to unique continuations
+        a_cont = fsm.add_literal("x", [a_state])
+        b_cont = fsm.add_literal("y", [b_state])
+
+        # After "a", should complete to "ax"
+        result_a, did_autocomplete_a = fsm.try_autocomplete("a")
+        assert result_a == "ax"
+        assert did_autocomplete_a is True
+
+        # After "b", should complete to "by"
+        result_b, did_autocomplete_b = fsm.try_autocomplete("b")
+        assert result_b == "by"
+        assert did_autocomplete_b is True
+
+        # Empty should not autocomplete (both "a" and "b" available)
+        result_empty, did_autocomplete_empty = fsm.try_autocomplete("")
+        assert result_empty == ""
+        assert did_autocomplete_empty is False
+
+    def test_autocomplete_with_whitespace_and_alternatives(self):
+        """Autocomplete with whitespace between alternatives."""
+        fsm = FSM()
+        hello = fsm.add_literal("hello", [0])
+        fsm.add_whitespace(hello)
+        world = fsm.add_literal("world", [hello])
+        fsm.add_whitespace(world)
+        # Create alternatives for next word
+        fsm.add_literal("!", [world])
+        fsm.add_literal("?", [world])
+
+        # "hello world" has two options after (! or ?), so stops
+        result, did_autocomplete = fsm.try_autocomplete("hello world")
+        assert result == "hello world"
+        assert did_autocomplete is False
+
+    def test_autocomplete_idempotent(self):
+        """Calling autocomplete on already completed text returns same result."""
+        fsm = FSM()
+        fsm.add_literal("hello", [0])
+
+        # First call
+        result1, did_autocomplete1 = fsm.try_autocomplete("h")
+        assert result1 == "hello"
+        assert did_autocomplete1 is True
+
+        # Second call with the result
+        result2, did_autocomplete2 = fsm.try_autocomplete(result1)
+        assert result2 == "hello"
+        assert did_autocomplete2 is False
+
+    def test_autocomplete_preserves_input(self):
+        """Autocomplete never modifies the input text, only extends it."""
+        fsm = FSM()
+        fsm.add_literal("hello", [0])
+
+        inputs = ["", "h", "he", "hel", "hell", "hello"]
+        for input_text in inputs:
+            result, _ = fsm.try_autocomplete(input_text)
+            assert result.startswith(input_text), f"Result {result} doesn't start with {input_text}"
+
+    def test_autocomplete_complex_json_like_structure(self):
+        """Autocomplete in a complex structure similar to JSON."""
+        fsm = FSM()
+        # Simulate: {"key": value}
+        brace = fsm.add_literal("{", [0])
+        quote1 = fsm.add_literal('"', [brace])
+        key = fsm.add_literal("key", [quote1])
+        quote2 = fsm.add_literal('"', [key])
+        colon = fsm.add_literal(":", [quote2])
+        fsm.add_whitespace(colon)
+        # After whitespace, could be number, string, or other (creates branching)
+        fsm.add_literal("123", [colon])
+        fsm.add_literal("true", [colon])
+
+        # Input up to colon and space should not autocomplete (multiple options)
+        result, did_autocomplete = fsm.try_autocomplete('{\"key\": ')
+        assert result == '{\"key\": '
+        assert did_autocomplete is False
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
