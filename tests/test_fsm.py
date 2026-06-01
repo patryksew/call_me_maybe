@@ -5,28 +5,28 @@ from src.fsm import FSM
 class TestFSMBasics:
     """Test basic FSM construction and state creation."""
 
-    def test_fsm_init(self):
-        """FSM initializes with one empty root state."""
+    def test_fsm_init(self) -> None:
+        """Verify that FSM initializes with one empty root state."""
         fsm = FSM()
         assert len(fsm.states) == 1
         assert fsm.states[0] == {}
 
-    def test_add_literal_single_start(self):
-        """Adding a literal from a single start state works."""
+    def test_add_literal_single_start(self) -> None:
+        """Verify that adding a literal from a single start state works."""
         fsm = FSM()
         end_state = fsm.add_literal("hello", [0])
         assert isinstance(end_state, int)
         assert end_state > 0
         assert len(fsm.states) > 1
 
-    def test_add_literal_empty_text_raises(self):
-        """Adding empty literal raises ValueError."""
+    def test_add_literal_empty_text_raises(self) -> None:
+        """Verify that adding an empty literal raises ValueError."""
         fsm = FSM()
         with pytest.raises(ValueError, match="Text must be non-empty"):
             fsm.add_literal("", [0])
 
-    def test_add_literal_creates_state_chain(self):
-        """Adding 'abc' creates a chain of transitions a->b->c."""
+    def test_add_literal_creates_state_chain(self) -> None:
+        """Verify that adding 'abc' creates a chain of transitions a->b->c."""
         fsm = FSM()
         fsm.add_literal("abc", [0])
 
@@ -43,45 +43,45 @@ class TestFSMBasics:
 class TestFSMValidation:
     """Test text validation behavior."""
 
-    def test_validate_simple_literal(self):
-        """Validating a simple literal works."""
+    def test_validate_simple_literal(self) -> None:
+        """Verify that validating a simple literal works."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
 
         result = fsm.validate_text("hello")
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_validate_prefix_ok(self):
-        """Validating a prefix of a literal returns OK (not FINISHED)."""
+    def test_validate_prefix_ok(self) -> None:
+        """Verify that validating a prefix of a literal returns OK (not FINISHED)."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
 
         result = fsm.validate_text("hel")
         assert result == FSM.ValidationResult.OK
 
-    def test_validate_invalid_char(self):
-        """Validating text with invalid char returns NOK."""
+    def test_validate_invalid_char(self) -> None:
+        """Verify that validating text with invalid character returns NOK."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
 
         result = fsm.validate_text("hex")
         assert result == FSM.ValidationResult.NOK
 
-    def test_validate_empty_text(self):
-        """Validating empty text on root state returns FINISHED (root accepts empty)."""
+    def test_validate_empty_text(self) -> None:
+        """Verify that validating empty text on root state returns FINISHED (root accepts empty)."""
         fsm = FSM()
         result = fsm.validate_text("")
-        assert result == FSM.ValidationResult.FINISHED  # Root state has no transitions, so len(state)==0
+        assert result == FSM.ValidationResult.FINISHED
 
-    def test_validate_resets_between_calls(self):
-        """validate_text does NOT update current_state (stateless behavior)."""
+    def test_validate_resets_between_calls(self) -> None:
+        """Verify that validate_text does NOT update current_state (stateless behavior)."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
 
         fsm.validate_text("hel")
 
-    def test_validate_multiple_paths(self):
-        """Validating when multiple valid transitions exist."""
+    def test_validate_multiple_paths(self) -> None:
+        """Verify validation when multiple valid transitions exist."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
         fsm.add_literal("hi", [0])
@@ -99,8 +99,8 @@ class TestFSMValidation:
 class TestFSMWhitespace:
     """Test whitespace handling."""
 
-    def test_add_whitespace_loops(self):
-        """Whitespace transitions loop back to the same state."""
+    def test_add_whitespace_loops(self) -> None:
+        """Verify that whitespace transitions loop back to the same state."""
         fsm = FSM()
         hello = fsm.add_literal("hello", [0])
         fsm.add_whitespace(hello)
@@ -110,8 +110,8 @@ class TestFSMWhitespace:
         assert state.get('\t') == hello
         assert state.get('\n') == hello
 
-    def test_whitespace_zero_or_more(self):
-        """Whitespace allows zero or more occurrences."""
+    def test_whitespace_zero_or_more(self) -> None:
+        """Verify that whitespace allows zero or more occurrences."""
         fsm = FSM()
         hello = fsm.add_literal("hello", [0])
         fsm.add_whitespace(hello)
@@ -126,7 +126,7 @@ class TestFSMWhitespace:
         result_multi_space = fsm.validate_text("hello   world")
         assert result_multi_space == FSM.ValidationResult.FINISHED
 
-    def test_whitespace_types(self):
+    def test_whitespace_types(self) -> None:
         """All whitespace types (space, tab, newline) are accepted."""
         fsm = FSM()
         hello = fsm.add_literal("hello", [0])
@@ -139,40 +139,40 @@ class TestFSMWhitespace:
 
 
 class TestFSMNumbers:
-    """Test JSON number validation."""
+    """Test JSON float number validation (requires decimal point, no exponent)."""
 
-    def test_number_zero(self):
-        """Single zero is a valid number."""
+    def test_number_zero(self) -> None:
+        """0.0 is a valid float number."""
         fsm = FSM()
         fsm.add_number(0)
-        fsm.validate_text("0")
-        # Should allow zero but might require follow-up or be terminal
-
-    def test_number_simple_integer(self):
-        """Simple positive integers are valid."""
-        fsm = FSM()
-        fsm.add_number(0)
-
-        result = fsm.validate_text("123")
-        assert result == FSM.ValidationResult.OK  # Numbers can continue in JSON (e.g., followed by , ] } or whitespace)
-
-    def test_number_negative(self):
-        """Negative numbers are valid."""
-        fsm = FSM()
-        fsm.add_number(0)
-
-        result = fsm.validate_text("-456")
+        result = fsm.validate_text("0.0")
         assert result == FSM.ValidationResult.OK
 
-    def test_number_negative_zero(self):
-        """Negative zero is a valid JSON number."""
+    def test_number_simple_decimal(self) -> None:
+        """Simple floats with decimals are valid."""
         fsm = FSM()
         fsm.add_number(0)
 
-        result = fsm.validate_text("-0")
+        result = fsm.validate_text("123.45")
         assert result == FSM.ValidationResult.OK
 
-    def test_number_decimal(self):
+    def test_number_negative_decimal(self) -> None:
+        """Negative floats are valid."""
+        fsm = FSM()
+        fsm.add_number(0)
+
+        result = fsm.validate_text("-456.78")
+        assert result == FSM.ValidationResult.OK
+
+    def test_number_negative_zero_decimal(self) -> None:
+        """Negative zero with decimal is a valid JSON float."""
+        fsm = FSM()
+        fsm.add_number(0)
+
+        result = fsm.validate_text("-0.0")
+        assert result == FSM.ValidationResult.OK
+
+    def test_number_decimal(self) -> None:
         """Numbers with decimal points are valid."""
         fsm = FSM()
         fsm.add_number(0)
@@ -180,70 +180,33 @@ class TestFSMNumbers:
         result = fsm.validate_text("3.14")
         assert result == FSM.ValidationResult.OK
 
-    def test_number_exponential(self):
-        """Numbers with exponents are valid (uppercase E)."""
-        fsm = FSM()
-        fsm.add_number(0)
-
-        result = fsm.validate_text("1E10")
-        assert result == FSM.ValidationResult.OK
-
-    def test_number_exponential_lowercase(self):
-        """Numbers with lowercase exponents are valid."""
-        fsm = FSM()
-        fsm.add_number(0)
-
-        result = fsm.validate_text("1e10")
-        assert result == FSM.ValidationResult.OK
-
-    def test_number_exponential_negative(self):
-        """Numbers with negative exponents are valid."""
-        fsm = FSM()
-        fsm.add_number(0)
-
-        result = fsm.validate_text("1.5e-3")
-        assert result == FSM.ValidationResult.OK
-
-    def test_number_exponential_positive_sign(self):
-        """Numbers with positive exponent sign are valid."""
-        fsm = FSM()
-        fsm.add_number(0)
-
-        result = fsm.validate_text("2E+5")
-        assert result == FSM.ValidationResult.OK
-
-    def test_number_complex(self):
-        """Complex number formats."""
+    def test_number_complex(self) -> None:
+        """Complex float number formats."""
         fsm = FSM()
         fsm.add_number(0)
 
         test_cases = [
-            "0",
-            "-0",
-            "123",
-            "-456",
+            "0.0",
+            "-0.0",
+            "123.45",
+            "-456.78",
             "3.14",
             "-3.14",
-            "1E10",
-            "1e10",
-            "1E-10",
-            "1.5e+3",
-            "-123.456E-7",
         ]
 
         for num_str in test_cases:
             result = fsm.validate_text(num_str)
             assert result == FSM.ValidationResult.OK, f"Failed for {num_str}"
 
-    def test_number_leading_zero_invalid(self):
+    def test_number_leading_zero_invalid(self) -> None:
         """Numbers with leading zeros (except lone 0) are invalid per JSON spec."""
         fsm = FSM()
         fsm.add_number(0)
 
-        result = fsm.validate_text("01")
+        result = fsm.validate_text("01.5")
         assert result == FSM.ValidationResult.NOK
 
-    def test_number_decimal_without_integer_invalid(self):
+    def test_number_decimal_without_integer_invalid(self) -> None:
         """.5 is not valid JSON (requires 0.5)."""
         fsm = FSM()
         fsm.add_number(0)
@@ -251,7 +214,7 @@ class TestFSMNumbers:
         result = fsm.validate_text(".5")
         assert result == FSM.ValidationResult.NOK
 
-    def test_number_decimal_without_fraction_invalid(self):
+    def test_number_decimal_without_fraction_invalid(self) -> None:
         """1. is a valid prefix (could continue with digits), returns OK."""
         fsm = FSM()
         fsm.add_number(0)
@@ -259,19 +222,109 @@ class TestFSMNumbers:
         result = fsm.validate_text("1.")
         assert result == FSM.ValidationResult.OK  # Valid prefix, expecting digits
 
-    def test_number_empty_exponent_invalid(self):
-        """1e is a valid prefix (could continue with sign or digits), returns OK."""
+    def test_number_integer_not_allowed(self) -> None:
+        """Plain integers without decimal are NOT allowed for complete float numbers."""
         fsm = FSM()
         fsm.add_number(0)
 
-        result = fsm.validate_text("1e")
-        assert result == FSM.ValidationResult.OK  # Valid prefix, expecting +/- or digits
+        # "123" is a valid prefix (could continue with .), so it returns OK
+        result = fsm.validate_text("123")
+        assert result == FSM.ValidationResult.OK  # Valid prefix
+
+        # "123," would not be valid (can't go from 123 to comma without decimal)
+        result = fsm.validate_text("123,")
+        assert result == FSM.ValidationResult.NOK
+
+    def test_number_no_exponent(self) -> None:
+        """Exponential notation is NOT allowed for numbers."""
+        fsm = FSM()
+        fsm.add_number(0)
+
+        result = fsm.validate_text("1.0e10")
+        assert result == FSM.ValidationResult.NOK
+
+
+class TestFSMIntegers:
+    """Test JSON integer validation (no decimal point, no exponent)."""
+
+    def test_integer_zero(self) -> None:
+        """Single zero is a valid integer."""
+        fsm = FSM()
+        fsm.add_integer(0)
+        result = fsm.validate_text("0")
+        # "0" reaches the zero accepting state which has no further transitions
+        assert result == FSM.ValidationResult.FINISHED
+
+    def test_integer_simple(self) -> None:
+        """Simple positive integers are valid."""
+        fsm = FSM()
+        fsm.add_integer(0)
+
+        result = fsm.validate_text("123")
+        assert result == FSM.ValidationResult.OK
+
+    def test_integer_negative(self) -> None:
+        """Negative integers are valid."""
+        fsm = FSM()
+        fsm.add_integer(0)
+
+        result = fsm.validate_text("-456")
+        assert result == FSM.ValidationResult.OK
+
+    def test_integer_negative_zero(self) -> None:
+        """Negative zero is a valid JSON integer."""
+        fsm = FSM()
+        fsm.add_integer(0)
+
+        result = fsm.validate_text("-0")
+        # "-0" reaches the zero state which has no outgoing transitions
+        assert result == FSM.ValidationResult.FINISHED
+
+    def test_integer_complex(self) -> None:
+        """Complex integer formats."""
+        fsm = FSM()
+        fsm.add_integer(0)
+
+        test_cases = [
+            ("0", FSM.ValidationResult.FINISHED),  # zero is terminal
+            ("-0", FSM.ValidationResult.FINISHED),  # minus + zero, also terminal
+            ("123", FSM.ValidationResult.OK),  # can continue with more digits
+            ("-456", FSM.ValidationResult.OK),  # can continue with more digits
+        ]
+
+        for num_str, expected in test_cases:
+            result = fsm.validate_text(num_str)
+            assert result == expected, f"Failed for {num_str}, expected {expected}, got {result}"
+
+    def test_integer_leading_zero_invalid(self) -> None:
+        """Integers with leading zeros (except lone 0) are invalid per JSON spec."""
+        fsm = FSM()
+        fsm.add_integer(0)
+
+        result = fsm.validate_text("01")
+        assert result == FSM.ValidationResult.NOK
+
+    def test_integer_decimal_not_allowed(self) -> None:
+        """Decimal points are NOT allowed for integers."""
+        fsm = FSM()
+        fsm.add_integer(0)
+
+        result = fsm.validate_text("3.14")
+        assert result == FSM.ValidationResult.NOK
+
+    def test_integer_no_exponent(self) -> None:
+        """Exponential notation is NOT allowed for integers."""
+        fsm = FSM()
+        fsm.add_integer(0)
+
+        result = fsm.validate_text("1e10")
+        assert result == FSM.ValidationResult.NOK
 
 
 class TestFSMChaining:
     """Test chaining literals, whitespace, and numbers."""
 
-    def test_chain_literal_whitespace_literal(self):
+    def test_chain_literal_whitespace_literal(self) -> None:
         """hello <spaces> world is valid."""
         fsm = FSM()
         hello = fsm.add_literal("hello", [0])
@@ -281,16 +334,27 @@ class TestFSMChaining:
         result = fsm.validate_text("hello world")
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_chain_literal_number(self):
-        """test123 is valid when chained."""
+    def test_chain_literal_number(self) -> None:
+        """test123.45 is valid when chained (number requires decimal)."""
         fsm = FSM()
         test = fsm.add_literal("test", [0])
-        fsm.add_number(test)
+        num = fsm.add_number(test)
+        fsm.add_literal("}", num)
 
-        result = fsm.validate_text("test123")
-        assert result == FSM.ValidationResult.OK  # Number endpoint returns OK in JSON context
+        result = fsm.validate_text("test123.45}")
+        assert result == FSM.ValidationResult.FINISHED
 
-    def test_chain_multiple_literals_with_whitespace(self):
+    def test_chain_literal_integer(self) -> None:
+        """test123 is valid when chained with integer."""
+        fsm = FSM()
+        test = fsm.add_literal("test", [0])
+        num = fsm.add_integer(test)
+        fsm.add_literal("}", num)
+
+        result = fsm.validate_text("test123}")
+        assert result == FSM.ValidationResult.FINISHED
+
+    def test_chain_multiple_literals_with_whitespace(self) -> None:
         """Multiple literals with whitespace."""
         fsm = FSM()
         hello = fsm.add_literal("hello", [0])
@@ -302,8 +366,8 @@ class TestFSMChaining:
         result = fsm.validate_text("hello world !")
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_chain_number_with_whitespace_literal(self):
-        """number <space> suffix."""
+    def test_chain_number_with_whitespace_literal(self) -> None:
+        """float number <space> suffix."""
         fsm = FSM()
         num = fsm.add_number(0)
 
@@ -313,11 +377,22 @@ class TestFSMChaining:
         result = fsm.validate_text("123.45 units")
         assert result == FSM.ValidationResult.FINISHED
 
+    def test_chain_integer_with_whitespace_literal(self) -> None:
+        """integer number <space> suffix."""
+        fsm = FSM()
+        num = fsm.add_integer(0)
+
+        fsm.add_whitespace(num)
+        fsm.add_literal("units", num)
+
+        result = fsm.validate_text("123 units")
+        assert result == FSM.ValidationResult.FINISHED
+
 
 class TestFSMMultiStartStates:
     """Test add_literal with multiple start states."""
 
-    def test_add_literal_multiple_starts_same_end(self):
+    def test_add_literal_multiple_starts_same_end(self) -> None:
         """Adding literal from multiple start states."""
         fsm = FSM()
         state1 = fsm.add_literal("a", [0])
@@ -332,7 +407,7 @@ class TestFSMMultiStartStates:
         assert result_ax == FSM.ValidationResult.FINISHED
         assert result_bx == FSM.ValidationResult.FINISHED
 
-    def test_add_literal_shared_prefix_no_conflict(self):
+    def test_add_literal_shared_prefix_no_conflict(self) -> None:
         """Adding literals with shared prefixes doesn't break prior paths."""
         fsm = FSM()
         h = fsm.add_literal("h", [0])
@@ -350,7 +425,7 @@ class TestFSMMultiStartStates:
 class TestFSMEdgeCases:
     """Test edge cases and corner scenarios."""
 
-    def test_single_char_literal(self):
+    def test_single_char_literal(self) -> None:
         """Single character literal."""
         fsm = FSM()
         fsm.add_literal("a", [0])
@@ -358,7 +433,7 @@ class TestFSMEdgeCases:
         result = fsm.validate_text("a")
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_long_literal(self):
+    def test_long_literal(self) -> None:
         """Very long literal."""
         fsm = FSM()
         long_text = "a" * 1000
@@ -367,7 +442,7 @@ class TestFSMEdgeCases:
         result = fsm.validate_text(long_text)
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_special_characters(self):
+    def test_special_characters(self) -> None:
         """Literals with special characters."""
         fsm = FSM()
         fsm.add_literal("!@#$%", [0])
@@ -375,7 +450,7 @@ class TestFSMEdgeCases:
         result = fsm.validate_text("!@#$%")
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_unicode_characters(self):
+    def test_unicode_characters(self) -> None:
         """Unicode in literals."""
         fsm = FSM()
         fsm.add_literal("hello🌍", [0])
@@ -383,7 +458,7 @@ class TestFSMEdgeCases:
         result = fsm.validate_text("hello🌍")
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_validation_after_multiple_additions(self):
+    def test_validation_after_multiple_additions(self) -> None:
         """Complex FSM with many branches."""
         fsm = FSM()
         root = 0
@@ -411,7 +486,7 @@ class TestFSMEdgeCases:
         assert result_hi == FSM.ValidationResult.FINISHED
         assert result_hey == FSM.ValidationResult.FINISHED
 
-    def test_validation_partial_match_is_ok(self):
+    def test_validation_partial_match_is_ok(self) -> None:
         """Partial match where more input is possible returns OK."""
         fsm = FSM()
         fsm.add_literal("testing", [0])
@@ -419,7 +494,7 @@ class TestFSMEdgeCases:
         result = fsm.validate_text("test")
         assert result == FSM.ValidationResult.OK
 
-    def test_validation_exact_match_is_finished(self):
+    def test_validation_exact_match_is_finished(self) -> None:
         """Exact match with no further transitions returns FINISHED."""
         fsm = FSM()
         fsm.add_literal("test", [0])
@@ -427,7 +502,7 @@ class TestFSMEdgeCases:
         result = fsm.validate_text("test")
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_numbers_return_multiple_accepting_states(self):
+    def test_numbers_return_multiple_accepting_states(self) -> None:
         """add_number returns list of accepting states."""
         fsm = FSM()
         result = fsm.add_number(0)
@@ -436,41 +511,33 @@ class TestFSMEdgeCases:
 
 
 class TestFSMNumberEdgeCases:
-    """Edge cases specific to number parsing."""
+    """Edge cases specific to float number parsing (no exponent)."""
 
-    def test_number_with_zero_exponent(self):
-        """1e0 should be valid."""
+    def test_number_negative_with_all_features(self) -> None:
+        """Negative float with decimal."""
         fsm = FSM()
         fsm.add_number(0)
 
-        result = fsm.validate_text("1e0")
+        result = fsm.validate_text("-123.456")
         assert result == FSM.ValidationResult.OK
 
-    def test_number_negative_with_all_features(self):
-        """Negative number with decimal and exponent."""
+    def test_number_plus_not_allowed_at_start(self) -> None:
+        """+123.45 should be invalid (JSON disallows leading +)."""
         fsm = FSM()
         fsm.add_number(0)
 
-        result = fsm.validate_text("-123.456e-78")
-        assert result == FSM.ValidationResult.OK
-
-    def test_number_plus_not_allowed_at_start(self):
-        """+123 should be invalid (JSON disallows leading +)."""
-        fsm = FSM()
-        fsm.add_number(0)
-
-        result = fsm.validate_text("+123")
+        result = fsm.validate_text("+123.45")
         assert result == FSM.ValidationResult.NOK
 
-    def test_number_double_minus_invalid(self):
-        """--5 should be invalid."""
+    def test_number_double_minus_invalid(self) -> None:
+        """--5.0 should be invalid."""
         fsm = FSM()
         fsm.add_number(0)
 
-        result = fsm.validate_text("--5")
+        result = fsm.validate_text("--5.0")
         assert result == FSM.ValidationResult.NOK
 
-    def test_number_multiple_dots_invalid(self):
+    def test_number_multiple_dots_invalid(self) -> None:
         """1.2.3 should be invalid."""
         fsm = FSM()
         fsm.add_number(0)
@@ -479,44 +546,91 @@ class TestFSMNumberEdgeCases:
         assert result == FSM.ValidationResult.NOK
 
 
+class TestFSMIntegerEdgeCases:
+    """Edge cases specific to integer parsing (no exponent)."""
+
+    def test_integer_negative_value(self) -> None:
+        """Negative integer."""
+        fsm = FSM()
+        fsm.add_integer(0)
+
+        result = fsm.validate_text("-123")
+        assert result == FSM.ValidationResult.OK
+
+    def test_integer_plus_not_allowed_at_start(self) -> None:
+        """+123 should be invalid (JSON disallows leading +)."""
+        fsm = FSM()
+        fsm.add_integer(0)
+
+        result = fsm.validate_text("+123")
+        assert result == FSM.ValidationResult.NOK
+
+    def test_integer_double_minus_invalid(self) -> None:
+        """--5 should be invalid."""
+        fsm = FSM()
+        fsm.add_integer(0)
+
+        result = fsm.validate_text("--5")
+        assert result == FSM.ValidationResult.NOK
+
+    def test_integer_with_decimal_invalid(self) -> None:
+        """1.2 should be invalid for integers."""
+        fsm = FSM()
+        fsm.add_integer(0)
+
+        result = fsm.validate_text("1.2")
+        assert result == FSM.ValidationResult.NOK
+
+
 class TestFSMNumberContract:
-    """Tests for add_number contract details (state meanings and collisions)."""
+    """Tests for add_number contract details."""
 
-    @staticmethod
-    def _state_after_text(fsm: FSM, text: str) -> int:
-        state_index = 0
-        for char in text:
-            state_index = fsm.states[state_index][char]
-        return state_index
-
-    def test_number_accepting_state_order_matches_semantics(self):
-        """Returned accepting states map to zero, integer, fraction, exponent."""
+    def test_number_accepting_state_is_list(self) -> None:
+        """add_number returns a list, not a single int."""
         fsm = FSM()
-        zero, integer, fraction, exponent = fsm.add_number(0)
+        end = fsm.add_number(0)
 
-        assert self._state_after_text(fsm, "0") == zero
-        assert self._state_after_text(fsm, "1") == integer
-        assert self._state_after_text(fsm, "123") == integer
-        assert self._state_after_text(fsm, "1.2") == fraction
-        assert self._state_after_text(fsm, "1e9") == exponent
+        assert isinstance(end, list)
+        assert len(end) > 0
 
-    def test_number_accepting_states_allow_json_value_termination(self):
-        """Each returned accepting state can be used as a JSON value endpoint."""
+    def test_number_accepting_state_allows_json_value_termination(self) -> None:
+        """The returned accepting states can be used as JSON value endpoints."""
         fsm = FSM()
-        ends = fsm.add_number(0)
-        fsm.add_literal("}", ends)
+        end = fsm.add_number(0)
+        fsm.add_literal("}", end)
+
+        assert fsm.validate_text("0.5}") == FSM.ValidationResult.FINISHED
+        assert fsm.validate_text("42.0}") == FSM.ValidationResult.FINISHED
+
+
+class TestFSMIntegerContract:
+    """Tests for add_integer contract details."""
+
+    def test_integer_accepting_state_is_list(self) -> None:
+        """add_integer returns a list, not a single int."""
+        fsm = FSM()
+        end = fsm.add_integer(0)
+
+        assert isinstance(end, list)
+        assert len(end) > 0
+
+    def test_integer_accepting_state_allows_json_value_termination(self) -> None:
+        """The returned accepting states can be used as JSON value endpoints."""
+        fsm = FSM()
+        end = fsm.add_integer(0)
+        fsm.add_literal("}", end)
 
         assert fsm.validate_text("0}") == FSM.ValidationResult.FINISHED
         assert fsm.validate_text("42}") == FSM.ValidationResult.FINISHED
-        assert fsm.validate_text("3.14}") == FSM.ValidationResult.FINISHED
-        assert fsm.validate_text("1e9}") == FSM.ValidationResult.FINISHED
+        # Decimals and exponents are NOT allowed for integers
+        assert fsm.validate_text("3.14}") == FSM.ValidationResult.NOK
+        assert fsm.validate_text("1e9}") == FSM.ValidationResult.NOK
 
         # Prefixes cannot terminate a JSON number value.
         assert fsm.validate_text("-}") == FSM.ValidationResult.NOK
-        assert fsm.validate_text("1.}") == FSM.ValidationResult.NOK
         assert fsm.validate_text("1e}") == FSM.ValidationResult.NOK
 
-    def test_add_number_overwrites_existing_start_digit_transition(self):
+    def test_add_number_overwrites_existing_start_digit_transition(self) -> None:
         """add_number currently overwrites colliding transitions on the start state."""
         fsm = FSM()
         fsm.add_literal("1a", [0])
@@ -532,7 +646,7 @@ class TestFSMNumberContract:
 class TestFSMStructure:
     """Test FSM internal structure and state management."""
 
-    def test_states_only_added_when_needed(self):
+    def test_states_only_added_when_needed(self) -> None:
         """Adding the same literal twice doesn't create duplicate states."""
         fsm = FSM()
 
@@ -543,7 +657,7 @@ class TestFSMStructure:
         # First literal adds states
         assert state_count_after_2 > state_count_after_1
 
-    def test_state_reuse_on_same_path(self):
+    def test_state_reuse_on_same_path(self) -> None:
         """When both paths converge, they should reuse states."""
         fsm = FSM()
 
@@ -560,7 +674,7 @@ class TestFSMStructure:
 class TestFSMJSON:
     """Test FSM behavior in JSON parsing context."""
 
-    def test_simple(self):
+    def test_simple(self) -> None:
         """Tests simple JSON with only a few valid literals"""
         fsm = FSM()
         name_index = fsm.add_literal('{"name":', [0])
@@ -584,7 +698,7 @@ class TestFSMJSON:
         assert fsm.validate_text('{"name": "divide_numbers"}') == FSM.ValidationResult.NOK
         assert fsm.validate_text('{"name": add_numbers"}') == FSM.ValidationResult.NOK
 
-    def test_with_numbers(self):
+    def test_with_numbers(self) -> None:
         """Tests JSON with numbers and literals"""
         fsm = FSM()
         name_index = fsm.add_literal('{"name":', [0])
@@ -599,20 +713,25 @@ class TestFSMJSON:
         function_name_end = fsm.add_literal('"', function_name_indexes)
 
         fsm.add_whitespace(function_name_end)
-        value_index = fsm.add_literal(', "value":', function_name_end)
+        value_index: int = fsm.add_literal(', "value":', function_name_end)
         fsm.add_whitespace(value_index)
-        value_index = fsm.add_number(value_index)
-        fsm.add_literal('}', value_index)
+        value_index_list = fsm.add_number(value_index)
+        fsm.add_literal('}', value_index_list)
 
-        assert fsm.validate_text('{"name":"add_numbers", "value": 123}') == FSM.ValidationResult.FINISHED
-        assert fsm.validate_text('{"name": "multiply_numbers", "value": -3.14e-10}') == FSM.ValidationResult.FINISHED
-        assert fsm.validate_text('{"name": "subtract", "value": 0}') == FSM.ValidationResult.FINISHED
+        # Numbers must have decimal point, no exponents
+        assert fsm.validate_text(
+            '{"name":"add_numbers", "value": 123.0}') == FSM.ValidationResult.FINISHED
+        assert fsm.validate_text(
+            '{"name": "multiply_numbers", "value": -3.14}') == FSM.ValidationResult.FINISHED
+        assert fsm.validate_text(
+            '{"name": "subtract", "value": 0.0}') == FSM.ValidationResult.FINISHED
 
-        assert fsm.validate_text('{"name": "divide_numbers", "value": 123}') == FSM.ValidationResult.NOK
-        assert fsm.validate_text('{"name": "add_numbers", "value": +123}') == FSM.ValidationResult.NOK
+        assert fsm.validate_text(
+            '{"name": "divide_numbers", "value": 123}') == FSM.ValidationResult.NOK
+        assert fsm.validate_text(
+            '{"name": "add_numbers", "value": +123}') == FSM.ValidationResult.NOK
 
-
-    def test_with_booleans(self):
+    def test_with_booleans(self) -> None:
         """Tests JSON with boolean literals"""
         fsm = FSM()
         name_index = fsm.add_literal('{"name":', [0])
@@ -627,22 +746,26 @@ class TestFSMJSON:
         function_name_end = fsm.add_literal('"', function_name_indexes)
 
         fsm.add_whitespace(function_name_end)
-        value_index = fsm.add_literal(', "value":', function_name_end)
+        value_index: int = fsm.add_literal(', "value":', function_name_end)
         fsm.add_whitespace(value_index)
-        value_index = fsm.add_boolean(value_index)
-        fsm.add_literal('}', value_index)
+        value_index_list = fsm.add_boolean(value_index)
+        fsm.add_literal('}', value_index_list)
 
-        assert fsm.validate_text('{"name":"add_numbers", "value": true}') == FSM.ValidationResult.FINISHED
-        assert fsm.validate_text('{"name": "multiply_numbers", "value": false}') == FSM.ValidationResult.FINISHED
+        assert fsm.validate_text(
+            '{"name":"add_numbers", "value": true}') == FSM.ValidationResult.FINISHED
+        assert fsm.validate_text(
+            '{"name": "multiply_numbers", "value": false}') == FSM.ValidationResult.FINISHED
 
-        assert fsm.validate_text('{"name": "divide_numbers", "value": true}') == FSM.ValidationResult.NOK
-        assert fsm.validate_text('{"name": "add_numbers", "value": truth}') == FSM.ValidationResult.NOK
+        assert fsm.validate_text(
+            '{"name": "divide_numbers", "value": true}') == FSM.ValidationResult.NOK
+        assert fsm.validate_text(
+            '{"name": "add_numbers", "value": truth}') == FSM.ValidationResult.NOK
 
 
 class TestFSMString:
     """Test JSON string validation with ASCII characters."""
 
-    def test_string_empty(self):
+    def test_string_empty(self) -> None:
         """Empty string is valid JSON."""
         fsm = FSM()
         fsm.add_string(0)
@@ -650,7 +773,7 @@ class TestFSMString:
         result = fsm.validate_text('""')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_simple_ascii(self):
+    def test_string_simple_ascii(self) -> None:
         """Simple ASCII string."""
         fsm = FSM()
         fsm.add_string(0)
@@ -658,7 +781,7 @@ class TestFSMString:
         result = fsm.validate_text('"hello"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_with_spaces(self):
+    def test_string_with_spaces(self) -> None:
         """String with spaces."""
         fsm = FSM()
         fsm.add_string(0)
@@ -666,7 +789,7 @@ class TestFSMString:
         result = fsm.validate_text('"hello world"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_with_numbers(self):
+    def test_string_with_numbers(self) -> None:
         """String with numbers."""
         fsm = FSM()
         fsm.add_string(0)
@@ -674,7 +797,7 @@ class TestFSMString:
         result = fsm.validate_text('"test123"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_with_special_chars(self):
+    def test_string_with_special_chars(self) -> None:
         """String with special ASCII characters."""
         fsm = FSM()
         fsm.add_string(0)
@@ -682,7 +805,7 @@ class TestFSMString:
         result = fsm.validate_text('"!@#$%^&*()"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_with_punctuation(self):
+    def test_string_with_punctuation(self) -> None:
         """String with punctuation."""
         fsm = FSM()
         fsm.add_string(0)
@@ -690,7 +813,7 @@ class TestFSMString:
         result = fsm.validate_text('"hello, world! How are you?"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_escaped_quote(self):
+    def test_string_escaped_quote(self) -> None:
         """String with escaped quote inside."""
         fsm = FSM()
         fsm.add_string(0)
@@ -698,7 +821,7 @@ class TestFSMString:
         result = fsm.validate_text('"say \\"hello\\""')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_escaped_backslash(self):
+    def test_string_escaped_backslash(self) -> None:
         """String with escaped backslash."""
         fsm = FSM()
         fsm.add_string(0)
@@ -706,7 +829,7 @@ class TestFSMString:
         result = fsm.validate_text('"path\\\\to\\\\file"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_escaped_newline(self):
+    def test_string_escaped_newline(self) -> None:
         """String with escaped newline."""
         fsm = FSM()
         fsm.add_string(0)
@@ -714,7 +837,7 @@ class TestFSMString:
         result = fsm.validate_text('"line1\\nline2"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_escaped_tab(self):
+    def test_string_escaped_tab(self) -> None:
         """String with escaped tab."""
         fsm = FSM()
         fsm.add_string(0)
@@ -722,7 +845,7 @@ class TestFSMString:
         result = fsm.validate_text('"col1\\tcol2"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_escaped_carriage_return(self):
+    def test_string_escaped_carriage_return(self) -> None:
         """String with escaped carriage return."""
         fsm = FSM()
         fsm.add_string(0)
@@ -730,7 +853,7 @@ class TestFSMString:
         result = fsm.validate_text('"line1\\rline2"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_escaped_backspace(self):
+    def test_string_escaped_backspace(self) -> None:
         """String with escaped backspace."""
         fsm = FSM()
         fsm.add_string(0)
@@ -738,7 +861,7 @@ class TestFSMString:
         result = fsm.validate_text('"text\\bmore"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_escaped_form_feed(self):
+    def test_string_escaped_form_feed(self) -> None:
         """String with escaped form feed."""
         fsm = FSM()
         fsm.add_string(0)
@@ -746,7 +869,7 @@ class TestFSMString:
         result = fsm.validate_text('"page1\\fpage2"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_escaped_forward_slash(self):
+    def test_string_escaped_forward_slash(self) -> None:
         """String with escaped forward slash."""
         fsm = FSM()
         fsm.add_string(0)
@@ -754,7 +877,7 @@ class TestFSMString:
         result = fsm.validate_text('"path\\/to\\/file"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_multiple_escapes(self):
+    def test_string_multiple_escapes(self) -> None:
         """String with multiple escape sequences."""
         fsm = FSM()
         fsm.add_string(0)
@@ -762,7 +885,7 @@ class TestFSMString:
         result = fsm.validate_text('"line1\\nline2\\ttab\\\\backslash\\""')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_no_closing_quote(self):
+    def test_string_no_closing_quote(self) -> None:
         """String without closing quote is invalid."""
         fsm = FSM()
         fsm.add_string(0)
@@ -770,7 +893,7 @@ class TestFSMString:
         result = fsm.validate_text('"hello')
         assert result == FSM.ValidationResult.OK  # Prefix OK, but not finished
 
-    def test_string_unescaped_quote_invalid(self):
+    def test_string_unescaped_quote_invalid(self) -> None:
         """Unescaped quote inside string is invalid."""
         fsm = FSM()
         fsm.add_string(0)
@@ -778,7 +901,7 @@ class TestFSMString:
         result = fsm.validate_text('"say "hello""')
         assert result == FSM.ValidationResult.NOK
 
-    def test_string_unescaped_backslash_at_end_invalid(self):
+    def test_string_unescaped_backslash_at_end_invalid(self) -> None:
         """Unescaped backslash at end is a valid prefix (could escape next char)."""
         fsm = FSM()
         fsm.add_string(0)
@@ -786,7 +909,7 @@ class TestFSMString:
         result = fsm.validate_text('"hello\\"')
         assert result == FSM.ValidationResult.OK  # Valid prefix, expecting escaped character
 
-    def test_string_invalid_escape_sequence(self):
+    def test_string_invalid_escape_sequence(self) -> None:
         """Invalid escape sequence (not recognized) should fail."""
         fsm = FSM()
         fsm.add_string(0)
@@ -794,14 +917,14 @@ class TestFSMString:
         result = fsm.validate_text('"hello\\x"')
         assert result == FSM.ValidationResult.NOK
 
-    def test_string_only_backslash(self):
+    def test_string_only_backslash(self) -> None:
         fsm = FSM()
         fsm.add_string(0)
 
         result = fsm.validate_text('"\\\\"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_backslash_without_escape(self):
+    def test_string_backslash_without_escape(self) -> None:
         """Backslash not followed by valid escape char."""
         fsm = FSM()
         fsm.add_string(0)
@@ -809,7 +932,7 @@ class TestFSMString:
         result = fsm.validate_text('"test\\a"')
         assert result == FSM.ValidationResult.NOK
 
-    def test_string_prefix_is_ok(self):
+    def test_string_prefix_is_ok(self) -> None:
         """Prefix of a valid string returns OK."""
         fsm = FSM()
         fsm.add_string(0)
@@ -817,7 +940,7 @@ class TestFSMString:
         result = fsm.validate_text('"hello')
         assert result == FSM.ValidationResult.OK
 
-    def test_string_with_numbers_and_special(self):
+    def test_string_with_numbers_and_special(self) -> None:
         """Complex string with numbers, letters, and special chars."""
         fsm = FSM()
         fsm.add_string(0)
@@ -825,15 +948,16 @@ class TestFSMString:
         result = fsm.validate_text('"user@example.com:12345"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_ascii_letters_and_digits(self):
+    def test_string_ascii_letters_and_digits(self) -> None:
         """All ASCII letters and digits."""
         fsm = FSM()
         fsm.add_string(0)
 
-        result = fsm.validate_text('"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"')
+        result = fsm.validate_text(
+            '"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_long_text(self):
+    def test_string_long_text(self) -> None:
         """Very long string."""
         fsm = FSM()
         fsm.add_string(0)
@@ -842,7 +966,7 @@ class TestFSMString:
         result = fsm.validate_text(long_text)
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_as_json_object_field(self):
+    def test_string_as_json_object_field(self) -> None:
         """String used as JSON field value."""
         fsm = FSM()
         quote_open = fsm.add_literal('{', [0])
@@ -859,7 +983,7 @@ class TestFSMString:
         result = fsm.validate_text('{"name": "John"}')
         assert result == FSM.ValidationResult.FINISHED
 
-    def test_string_as_json_array_element(self):
+    def test_string_as_json_array_element(self) -> None:
         """String used as JSON array element."""
         fsm = FSM()
         bracket_open = fsm.add_literal('[', [0])
@@ -878,7 +1002,7 @@ class TestFSMString:
 class TestTryAutocomplete:
     """Test the try_autocomplete method."""
 
-    def test_autocomplete_simple_literal_complete_match(self):
+    def test_autocomplete_simple_literal_complete_match(self) -> None:
         """Completing a text that fully matches a literal should not autocomplete."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
@@ -887,7 +1011,7 @@ class TestTryAutocomplete:
         assert result == "hello"
         assert did_autocomplete is False
 
-    def test_autocomplete_simple_literal_partial_match(self):
+    def test_autocomplete_simple_literal_partial_match(self) -> None:
         """Completing a partial match with no branch should autocomplete deterministically."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
@@ -896,7 +1020,7 @@ class TestTryAutocomplete:
         assert result == "hello"
         assert did_autocomplete is True
 
-    def test_autocomplete_empty_input(self):
+    def test_autocomplete_empty_input(self) -> None:
         """Autocompleting empty input on a single literal should work."""
         fsm = FSM()
         fsm.add_literal("test", [0])
@@ -905,7 +1029,7 @@ class TestTryAutocomplete:
         assert result == "test"
         assert did_autocomplete is True
 
-    def test_autocomplete_invalid_character_returns_original(self):
+    def test_autocomplete_invalid_character_returns_original(self) -> None:
         """If input contains invalid character, return original text without autocomplete."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
@@ -914,7 +1038,7 @@ class TestTryAutocomplete:
         assert result == "hex"
         assert did_autocomplete is False
 
-    def test_autocomplete_with_multiple_paths_no_autocomplete(self):
+    def test_autocomplete_with_multiple_paths_no_autocomplete(self) -> None:
         """When there are multiple valid paths after input, don't autocomplete."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
@@ -925,7 +1049,7 @@ class TestTryAutocomplete:
         assert result == "hel"
         assert did_autocomplete is False
 
-    def test_autocomplete_with_single_path_continues(self):
+    def test_autocomplete_with_single_path_continues(self) -> None:
         """When there's only one valid path after input, continue autocompleting."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
@@ -936,7 +1060,7 @@ class TestTryAutocomplete:
         assert result == "hello"
         assert did_autocomplete is True
 
-    def test_autocomplete_completely_invalid_input(self):
+    def test_autocomplete_completely_invalid_input(self) -> None:
         """Completely invalid input doesn't autocomplete."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
@@ -945,7 +1069,7 @@ class TestTryAutocomplete:
         assert result == "x"
         assert did_autocomplete is False
 
-    def test_autocomplete_stops_at_branching_point(self):
+    def test_autocomplete_stops_at_branching_point(self) -> None:
         """Autocomplete stops when it reaches a state with multiple transitions."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
@@ -957,7 +1081,7 @@ class TestTryAutocomplete:
         assert result == "he"
         assert did_autocomplete is False
 
-    def test_autocomplete_with_whitespace(self):
+    def test_autocomplete_with_whitespace(self) -> None:
         """Autocomplete through whitespace - stops at whitespace state with multiple options."""
         fsm = FSM()
         hello = fsm.add_literal("hello", [0])
@@ -970,14 +1094,14 @@ class TestTryAutocomplete:
         assert result == "hello "
         assert did_autocomplete is False
 
-    def test_autocomplete_empty_string_on_terminal_state(self):
+    def test_autocomplete_empty_string_on_terminal_state(self) -> None:
         """Empty string on FSM with no options returns as-is with no autocomplete."""
         fsm = FSM()
         result, did_autocomplete = fsm.try_autocomplete("")
         assert result == ""
         assert did_autocomplete is False
 
-    def test_autocomplete_partial_literal_no_branching(self):
+    def test_autocomplete_partial_literal_no_branching(self) -> None:
         """Partial match of a literal with no alternative paths autocompletes fully."""
         fsm = FSM()
         fsm.add_literal("abc", [0])
@@ -990,7 +1114,7 @@ class TestTryAutocomplete:
         assert result2 == "abc"
         assert did_autocomplete2 is True
 
-    def test_autocomplete_diverging_literals_partial_prefix(self):
+    def test_autocomplete_diverging_literals_partial_prefix(self) -> None:
         """Partial prefix that splits into multiple paths doesn't autocomplete."""
         fsm = FSM()
         fsm.add_literal("cat", [0])
@@ -1000,8 +1124,9 @@ class TestTryAutocomplete:
         assert result == "ca"
         assert did_autocomplete is False
 
-    def test_autocomplete_diverging_literals_single_path_after(self):
-        """Even with diverging paths, if input reaches a point with single continuation, autocomplete."""
+    def test_autocomplete_diverging_literals_single_path_after(self) -> None:
+        """Even with diverging paths, if input reaches a point with single continuation,
+         autocomplete."""
         fsm = FSM()
         fsm.add_literal("cat", [0])
         fsm.add_literal("car", [0])
@@ -1012,7 +1137,7 @@ class TestTryAutocomplete:
         assert result == "cat"
         assert did_autocomplete is False  # Already at terminal state
 
-    def test_autocomplete_boolean_true(self):
+    def test_autocomplete_boolean_true(self) -> None:
         """Autocomplete boolean true."""
         fsm = FSM()
         fsm.add_boolean(0)
@@ -1021,7 +1146,7 @@ class TestTryAutocomplete:
         assert result == "true"
         assert did_autocomplete is True
 
-    def test_autocomplete_boolean_false(self):
+    def test_autocomplete_boolean_false(self) -> None:
         """Autocomplete boolean false."""
         fsm = FSM()
         fsm.add_boolean(0)
@@ -1030,7 +1155,7 @@ class TestTryAutocomplete:
         assert result == "false"
         assert did_autocomplete is True
 
-    def test_autocomplete_boolean_ambiguous(self):
+    def test_autocomplete_boolean_ambiguous(self) -> None:
         """Autocomplete boolean "t" leads deterministically to "true"."""
         fsm = FSM()
         fsm.add_boolean(0)
@@ -1040,7 +1165,7 @@ class TestTryAutocomplete:
         assert result == "true"
         assert did_autocomplete is True
 
-    def test_autocomplete_boolean_initial_ambiguous(self):
+    def test_autocomplete_boolean_initial_ambiguous(self) -> None:
         """Initial empty input is ambiguous between true and false."""
         fsm = FSM()
         fsm.add_boolean(0)
@@ -1050,16 +1175,17 @@ class TestTryAutocomplete:
         assert result == ""
         assert did_autocomplete is False
 
-    def test_autocomplete_number_zero(self):
+    def test_autocomplete_number_zero(self) -> None:
         """Autocomplete number zero."""
         fsm = FSM()
-        end_states = fsm.add_number(0)
+        fsm.add_number(0)
 
         result, did_autocomplete = fsm.try_autocomplete("0")
-        assert result == "0"
-        assert did_autocomplete is False  # Terminal state reached
+        # "0" autocompletes to "0." since numbers require a decimal point
+        assert result == "0."
+        assert did_autocomplete is True  # Autocomplete did occur
 
-    def test_autocomplete_number_negative(self):
+    def test_autocomplete_number_negative(self) -> None:
         """Autocomplete negative number."""
         fsm = FSM()
         fsm.add_number(0)
@@ -1069,8 +1195,9 @@ class TestTryAutocomplete:
         assert result.startswith("-")
         # Whether it autocompletes depends on having only one valid next character
 
-    def test_autocomplete_after_invalid_continues_from_failure_point(self):
-        """Once an invalid character is hit, stay at result with invalid char, don't autocomplete."""
+    def test_autocomplete_after_invalid_continues_from_failure_point(self) -> None:
+        """Once an invalid character is hit, stay at result with invalid char,
+         don't autocomplete."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
 
@@ -1078,18 +1205,18 @@ class TestTryAutocomplete:
         assert result == "hex"  # Original input returned
         assert did_autocomplete is False
 
-    def test_autocomplete_chain_of_deterministic_transitions(self):
+    def test_autocomplete_chain_of_deterministic_transitions(self) -> None:
         """Autocomplete through multiple deterministic transitions."""
         fsm = FSM()
         state1 = fsm.add_literal("a", [0])
         state2 = fsm.add_literal("b", [state1])
-        state3 = fsm.add_literal("c", [state2])
+        fsm.add_literal("c", [state2])
 
         result, did_autocomplete = fsm.try_autocomplete("a")
         assert result == "abc"
         assert did_autocomplete is True
 
-    def test_autocomplete_mixed_branching_and_linear(self):
+    def test_autocomplete_mixed_branching_and_linear(self) -> None:
         """Complex FSM with branching and linear paths."""
         fsm = FSM()
         # Two initial choices: "a" or "b"
@@ -1097,8 +1224,8 @@ class TestTryAutocomplete:
         b_state = fsm.add_literal("b", [0])
 
         # Both lead to unique continuations
-        a_cont = fsm.add_literal("x", [a_state])
-        b_cont = fsm.add_literal("y", [b_state])
+        fsm.add_literal("x", [a_state])
+        fsm.add_literal("y", [b_state])
 
         # After "a", should complete to "ax"
         result_a, did_autocomplete_a = fsm.try_autocomplete("a")
@@ -1115,7 +1242,7 @@ class TestTryAutocomplete:
         assert result_empty == ""
         assert did_autocomplete_empty is False
 
-    def test_autocomplete_with_whitespace_and_alternatives(self):
+    def test_autocomplete_with_whitespace_and_alternatives(self) -> None:
         """Autocomplete with whitespace between alternatives."""
         fsm = FSM()
         hello = fsm.add_literal("hello", [0])
@@ -1131,7 +1258,7 @@ class TestTryAutocomplete:
         assert result == "hello world"
         assert did_autocomplete is False
 
-    def test_autocomplete_idempotent(self):
+    def test_autocomplete_idempotent(self) -> None:
         """Calling autocomplete on already completed text returns same result."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
@@ -1146,7 +1273,7 @@ class TestTryAutocomplete:
         assert result2 == "hello"
         assert did_autocomplete2 is False
 
-    def test_autocomplete_preserves_input(self):
+    def test_autocomplete_preserves_input(self) -> None:
         """Autocomplete never modifies the input text, only extends it."""
         fsm = FSM()
         fsm.add_literal("hello", [0])
@@ -1156,7 +1283,7 @@ class TestTryAutocomplete:
             result, _ = fsm.try_autocomplete(input_text)
             assert result.startswith(input_text), f"Result {result} doesn't start with {input_text}"
 
-    def test_autocomplete_complex_json_like_structure(self):
+    def test_autocomplete_complex_json_like_structure(self) -> None:
         """Autocomplete in a complex structure similar to JSON."""
         fsm = FSM()
         # Simulate: {"key": value}

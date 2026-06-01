@@ -14,19 +14,28 @@ class FSM:
         NOK = auto()
         FINISHED = auto()
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.states: list[dict[str, int]] = [{}]
 
     def __new_state(self) -> int:
-        """Creates an empty state
+        """
+        Create an empty state.
 
-        Returns the index of the new state."""
+        :return: The index of the new state.
+        """
         self.states.append({})
         return len(self.states) - 1
 
     def add_literal(self, text: str, start: list[int] | int) -> int:
-        """Adds a literal string to the FSM, starting from the given states.
-        The literal must lead to exactly one final state."""
+        """
+        Add a literal string to the FSM, starting from the given states.
+
+        :param text: The literal string to add.
+        :param start: The starting state index or list of indices.
+        :return: The index of the final state.
+        :raises ValueError: If the text is empty.
+        :raises DivergingLiteralError: If the literal leads to more than one final state.
+        """
         if len(text) == 0:
             raise ValueError("Text must be non-empty")
 
@@ -58,7 +67,11 @@ class FSM:
         return current_states.pop()
 
     def add_whitespace(self, start: list[int] | int) -> None:
-        """Adds zero or more whitespaces (space, tab, newline). Use add_literal if you need at least one whitespace."""
+        """
+        Add zero or more whitespaces (space, tab, newline) to the FSM.
+
+        :param start: The starting state index or list of indices.
+        """
 
         if isinstance(start, int):
             start = [start]
@@ -70,9 +83,12 @@ class FSM:
             state['\n'] = state_index
 
     def add_number(self, start: int) -> list[int]:
-        """Adds JSON valid number
+        """
+        Add a JSON-formatted number (float, must include decimal point) to the FSM.
 
-        Returns the list of indexes containing the last valid characters."""
+        :param start: The starting state index.
+        :return: A list of indices for the final states.
+        """
 
         DIGITS = "0123456789"
         NON_ZERO_DIGITS = "123456789"
@@ -89,9 +105,6 @@ class FSM:
         int_digits = new_state()
         dot = new_state()
         fraction = new_state()
-        exp = new_state()
-        exp_sign = new_state()
-        exp_digits = new_state()
 
         link(start, "-", minus)
 
@@ -106,24 +119,58 @@ class FSM:
         link(dot, DIGITS, fraction)
         link(fraction, DIGITS, fraction)
 
-        for state in (zero, int_digits, fraction):
-            link(state, "eE", exp)
+        return [fraction]
 
-        link(exp, "+-", exp_sign)
+    def add_integer(self, start: int) -> list[int]:
+        """
+        Add a JSON-formatted integer (no decimal point, no exponent) to the FSM.
 
-        link(exp, DIGITS, exp_digits)
-        link(exp_sign, DIGITS, exp_digits)
-        link(exp_digits, DIGITS, exp_digits)
+        :param start: The starting state index.
+        :return: A list of indices for the final states.
+        """
 
-        return [zero, int_digits, fraction, exp_digits]
+        DIGITS = "0123456789"
+        NON_ZERO_DIGITS = "123456789"
+
+        def new_state() -> int:
+            return self.__new_state()
+
+        def link(src: int, chars: str, dst: int) -> None:
+            for char in chars:
+                self.states[src][char] = dst
+
+        minus = new_state()
+        zero = new_state()
+        int_digits = new_state()
+
+        link(start, "-", minus)
+
+        link(start, "0", zero)
+        link(minus, "0", zero)
+        link(start, NON_ZERO_DIGITS, int_digits)
+        link(minus, NON_ZERO_DIGITS, int_digits)
+        link(int_digits, DIGITS, int_digits)
+
+        return [zero, int_digits]
 
     def add_boolean(self, start: int) -> list[int]:
-        """Adds the literals "true" and false" to the FSM, starting from the given state."""
+        """
+        Add the literals "true" and "false" to the FSM.
+
+        :param start: The starting state index.
+        :return: A list of final state indices.
+        """
         true_state = self.add_literal("true", start)
         false_state = self.add_literal("false", start)
         return [true_state, false_state]
 
     def add_string(self, start: int) -> int:
+        """
+        Add a JSON-formatted string to the FSM.
+
+        :param start: The starting state index.
+        :return: The index of the final state.
+        """
         valid_chars = "".join(
             char for char in string.printable
             if char not in {'"', '\\', '\t', '\n', '\r', '\x0b', '\x0c'}
@@ -156,6 +203,12 @@ class FSM:
         return str_end_state
 
     def validate_text(self, text: str) -> ValidationResult:
+        """
+        Validate the given text against the FSM.
+
+        :param text: The text to validate.
+        :return: A ValidationResult (OK, NOK, or FINISHED).
+        """
         state = self.states[0]
 
         for char in text:
@@ -169,8 +222,15 @@ class FSM:
         return FSM.ValidationResult.OK
 
     def try_autocomplete(self, text: str) -> tuple[str, bool]:
-        """Tries to autocomplete the given text to a valid string according to the FSM, as long when there is a single valid path.
-        Returns the autocompleted text and a boolean indicating whether any autocompletion was done."""
+        """
+        Try to autocomplete text to a valid string according to the FSM.
+
+        Autocompletion continues as long as there is a single valid path.
+
+        :param text: The text to autocomplete.
+        :return: A tuple containing the autocompleted text and a boolean indicating
+                 whether any autocompletion was performed.
+        """
         state = self.states[0]
         result = text
         did_something = False

@@ -1,24 +1,57 @@
 import time
+from pydantic import ValidationError
 
+from .cli import CLIArguments
 from .io_manager import IOManager
 from .models import OutputResults, OutputResult
 from .robot import Robot
 from .printer import Printer
 
 
-def main():
+def main() -> None:
+    """
+    Main entry point.
+    """
     import os
     # we're tricking ROCM that we use a supported GPU
     os.environ["HSA_OVERRIDE_GFX_VERSION"] = "10.3.0"
 
-    i = IOManager()
-    definitions = i.get_function_definitions()
+    try:
+        args = CLIArguments.from_cli()
+    except ValidationError as e:
+        print(f"Error parsing arguments: {e.errors()[0]['msg']}")
+        exit(1)
 
-    prompts = i.get_input_prompts().prompts
+    io_manager = IOManager(
+        path_functions=args.functions_definition,
+        path_input=args.input,
+        path_output=args.output
+    )
+    definitions = io_manager.get_function_definitions()
+
+    prompts = io_manager.get_input_prompts().prompts
     validator = definitions.to_fsm()
 
-    printer = Printer(len(prompts))
-    robot = Robot(definitions, validator, printer)
+    model = args.model
+
+    printer = Printer(len(prompts), model)
+
+    try:
+        robot = Robot(definitions, validator, printer, model)
+    except Exception as e:
+        BOLD = "\033[1m"
+        LIGHT_GREEN = "\033[92m"
+        RESET = "\033[0m"
+        model = 'Qwen/Qwen3-0.6B'
+        print(
+            f"Error initializing the Robot: {e}.\n\n"
+            f"{BOLD}{LIGHT_GREEN}Falling back to the default model {model}.{RESET}\n")
+        try:
+            printer = Printer(len(prompts), model)
+            robot = Robot(definitions, validator, printer, model)
+        except Exception as e:
+            print(f"Failed to load the default model as well: {e}. Exiting.")
+            exit(1)
 
     outputs = OutputResults()
 
@@ -28,15 +61,13 @@ def main():
         answer = robot.get_answer_to_input_prompt(prompt)
         try:
             output = OutputResult.model_validate_json(answer)
-            output.add_prompt(prompt.prompt)
             outputs.append(output)
         except ValueError as e:
             print(e)
             print(answer)
 
-    i.save_output_results(outputs)
-
-    print(f"Total time: {time.time() - start_t:.2f} seconds")
+    io_manager.save_output_results(outputs)
+    printer.print_done_message(time.time() - start_t, str(io_manager.get_output_file_path()))
 
     exit(0)
 

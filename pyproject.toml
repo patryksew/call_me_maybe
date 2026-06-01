@@ -7,9 +7,10 @@ requires-python = ">=3.13"
 dependencies = [
 	"llm-sdk==0.0.10",
 	"pydantic==2.10.4",
-    "torchvision>=0.15.0",
-    "torch",
-    "accelerate",
+	"torchvision>=0.15.0",
+	"torch",
+	"accelerate",
+	"mypy>=2.1.0",
 ]
 
 [[tool.uv.index]]

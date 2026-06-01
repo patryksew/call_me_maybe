@@ -10,20 +10,45 @@ OUTPUT_PATH = DATA_PATH / "output"
 
 
 class IOManager(BaseModel):
-    path_functions: Path = Field(default=INPUT_PATH / "functions_definition.json")
-    path_input: Path = Field(default=INPUT_PATH / "function_calling_tests.json")
-    path_output: Path = Field(default=OUTPUT_PATH / "function_calling_results.json")
+    """Manages input/output operations for function definitions and prompts."""
+    path_functions: Path = Field()
+    path_input: Path = Field()
+    path_output: Path = Field()
 
     def get_function_definitions(self) -> FunctionDefinitions:
+        """
+        Load and return function definitions from the specified path.
+
+        :return: A FunctionDefinitions object.
+        """
         with open(self.path_functions) as f:
             definitions = f.read()
             return FunctionDefinitions.model_validate_json(definitions)
 
-    def get_input_prompts(self):
+    def get_input_prompts(self) -> InputPrompts:
+        """
+        Load and return input prompts from the specified path.
+
+        :return: An InputPrompts object.
+        """
         with open(self.path_input) as f:
             prompts = f.read()
             return InputPrompts.model_validate_json(prompts)
 
-    def save_output_results(self, results: OutputResults):
+    def save_output_results(self, results: OutputResults) -> None:
+        """
+        Save output results to the specified path.
+
+        :param results: The OutputResults object to save.
+        """
+        self.path_output.parent.mkdir(parents=True, exist_ok=True)
         with open(self.path_output, "w") as f:
             f.write(results.model_dump_json(indent=4))
+
+    def get_output_file_path(self) -> Path:
+        """
+        Return the path where output results are saved.
+
+        :return: The Path to the output file.
+        """
+        return self.path_output
