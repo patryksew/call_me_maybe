@@ -124,6 +124,7 @@ class FunctionDefinitions(RootModel[list[FunctionDefinition]]):
         matches the defined function schemas.
 
         :return: An FSM object.
+        :raises ValueError: If an error occurs during FSM construction.
         """
         fsm = FSM()
 
@@ -134,7 +135,10 @@ class FunctionDefinitions(RootModel[list[FunctionDefinition]]):
         # indent before "name"
         root_state = fsm.add_literal(',\n    ', root_state)
 
-        terminal_states = [fun.attach_to_fsm(fsm, root_state) for fun in self.functions]
+        try:
+            terminal_states = [fun.attach_to_fsm(fsm, root_state) for fun in self.functions]
+        except ValueError as e:
+            raise ValueError("Failed to attach function definitions to FSM") from e
 
         fsm.add_literal('}', terminal_states)
 

@@ -20,9 +20,13 @@ class IOManager(BaseModel):
         Load and return function definitions from the specified path.
 
         :return: A FunctionDefinitions object.
+        :raises ValueError: If no functions are found in the JSON file.
         """
         with open(self.path_functions) as f:
             definitions = f.read()
+            parsed_definitions = FunctionDefinitions.model_validate_json(definitions)
+            if len(parsed_definitions.functions) == 0:
+                raise ValueError("No functions found in the provided JSON file.")
             return FunctionDefinitions.model_validate_json(definitions)
 
     def get_input_prompts(self) -> InputPrompts:
@@ -33,6 +37,9 @@ class IOManager(BaseModel):
         """
         with open(self.path_input) as f:
             prompts = f.read()
+            parsed_prompts = InputPrompts.model_validate_json(prompts)
+            if len(parsed_prompts.prompts) == 0:
+                raise ValueError("No prompts found in the provided JSON file.")
             return InputPrompts.model_validate_json(prompts)
 
     def save_output_results(self, results: OutputResults) -> None:
